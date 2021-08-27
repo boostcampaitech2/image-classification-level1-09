@@ -1,6 +1,6 @@
 # pstage_01_image_classification
 
-### image data 추가
+## image data 추가
 - 다음과 같은 구성으로 Data 파일 추가하여 학습
 ```
 data
@@ -12,9 +12,8 @@ data
       ㄴ info.csv
 ```
 
-### 헙업 규칙
-
-#### Commit Convention
+## 헙업 규칙
+### Commit Convention
 <타입>: <제목>
 
 <타입>
@@ -32,7 +31,7 @@ data
 예시 - feat: 로그인 기능 추가
 
 
-#### Issue & Commit
+### Issue & Commit
 1. Issue에 개발 / 수정할 내용 올리기
 2. 부여된 Issue번호를 이용하여 브랜치 만들기   ex) #00feature/cutmix
 ```
