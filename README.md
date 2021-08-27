@@ -2,6 +2,7 @@
 
 ### image data 추가
 - 다음과 같은 구성으로 Data 파일 추가하여 학습
+```
 data
   ㄴ train
       ㄴ images
@@ -9,7 +10,7 @@ data
   ㄴ eval
       ㄴ images
       ㄴ info.csv
-
+```
 
 ### 헙업 규칙
 
@@ -34,15 +35,15 @@ data
 #### Issue & Commit
 1. Issue에 개발 / 수정할 내용 올리기
 2. 부여된 Issue번호를 이용하여 브랜치 만들기   ex) #00feature/cutmix
-'''
+```
 git checkout -b #00feature/cutmix
-'''
+```
 3. 코드 변경 후 commit
-'''
+```
 git add .
 git commit -m "커밋 로그" # commit log는 Commit Convention 참고하여 작성    ex) docs : README Commit convention 추가
 git push -u origin #00feature/cutmix
-'''
+```
 4. pull request 보내기 (#00feature/cutmix -> master)
 5. 팀원 확인 후 팀장이 Merge
 6. merge 시 발생하는 conflict 해결
