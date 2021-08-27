@@ -12,7 +12,7 @@ data
       ㄴ info.csv
 ```
 
-## 헙업 규칙
+## 협업 규칙
 ### Commit Convention
 <타입>: <제목>
 
