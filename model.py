@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision
+
+import math
+import timm
 
 
 class BaseModel(nn.Module):
@@ -51,3 +55,64 @@ class MyModel(nn.Module):
         2. 결과로 나온 output 을 return 해주세요
         """
         return x
+
+# Resnet 50
+class resnet50(nn.Module):
+    def __init__(self, num_classes, freeze):
+        super().__init__()
+        self.freeze = freeze
+        self.resnet50 = torchvision.models.resnet50(pretrained=True)
+        self.resnet50.fc = torch.nn.Linear(in_features=2048, out_features=num_classes, bias=True)
+        self.init_param()
+
+    def init_param(self):
+        torch.nn.init.kaiming_uniform_(self.resnet50.fc.weight)
+        stdv = 1./math.sqrt(self.resnet50.fc.weight.size(1))
+        self.resnet50.fc.bias.data.uniform_(-stdv, stdv)
+        if self.freeze:
+            for param in self.resnet50.parameters():
+                param.requies_grad = False
+
+    def forward(self, x):
+        return self.resnet50(x)
+
+# Resnet 152
+class resnet152(nn.Module):
+    def __init__(self, num_classes, freeze):
+        super().__init__()
+        self.freeze = freeze
+        self.resnet152 = torchvision.models.resnet152(pretrained=True)
+        self.resnet152.fc = torch.nn.Linear(in_features=2048, out_features=num_classes, bias=True)
+        self.init_param()
+
+    def init_param(self):
+        torch.nn.init.kaiming_uniform_(self.resnet152.fc.weight)
+        stdv = 1./math.sqrt(self.resnet152.fc.weight.size(1))
+        self.resnet152.fc.bias.data.uniform_(-stdv, stdv)
+        if self.freeze:
+            for param in self.resnet152.parameters():
+                param.requies_grad = False
+
+    def forward(self, x):
+        return self.resnet152(x)
+
+
+# dm_nfnet_f3
+class dm_nfnet_f3(nn.Module):
+    def __init__(self, num_classes, freeze):
+        super().__init__()
+        self.freeze = freeze
+        self.dm_nfnet_f3 = timm.create_model('dm_nfnet_f3', pretrained=True)
+        self.dm_nfnet_f3.head.fc = torch.nn.Linear(in_features=3072, out_features=num_classes, bias=True)
+        self.init_param()
+
+    def init_param(self):
+        torch.nn.init.kaiming_uniform_(self.dm_nfnet_f3.head.fc.weight)
+        stdv = 1./math.sqrt(self.dm_nfnet_f3.head.fc.weight.size(1))
+        self.dm_nfnet_f3.head.fc.bias.data.uniform_(-stdv, stdv)
+        if self.freeze:
+            for param in self.dm_nfnet_f3.parameters():
+                param.requies_grad = False
+
+    def forward(self, x):
+        return self.dm_nfnet_f3(x)

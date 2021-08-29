@@ -8,8 +8,8 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision import transforms
-from torchvision.transforms import *
+from torchvision import transforms as tr
+from albumentations import  *
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -51,18 +51,22 @@ class AddGaussianNoise(object):
 
 
 class CustomAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            CenterCrop((320, 256)),
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0.1, 0.1, 0.1),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            AddGaussianNoise()
+    def __init__(self, mean, std, **args):
+        self.transform1 = Compose([
+            CenterCrop(224, 224),
+            # RandomBrightnessContrast(0.6, p=0.6),
+            # GaussianBlur(blur_limit=(100, 100), p=0.6)
+            # Resize(resize, Image.BILINEAR),
+            # ToTensor(),
+            # Normalize(mean=mean, std=std),
+            # AddGaussianNoise()
         ])
+        self.transform2 = tr.Compose([tr.ToTensor(),
+                                      tr.Normalize(mean=mean, std=std)])
 
     def __call__(self, image):
-        return self.transform(image)
+        image = self.transform1(image=np.array(image))['image']
+        return self.transform2(image)
 
 
 class MaskLabels(int, Enum):
@@ -84,7 +88,6 @@ class GenderLabels(int, Enum):
             return cls.FEMALE
         else:
             raise ValueError(f"Gender value should be either 'male' or 'female', {value}")
-
 
 class AgeLabels(int, Enum):
     YOUNG = 0
@@ -128,7 +131,7 @@ class MaskBaseDataset(Dataset):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
-        self.val_ratio = val_ratio
+        self.val_ratio = val_ratio # validation data ratio
 
         self.transform = None
         self.setup()
@@ -183,9 +186,16 @@ class MaskBaseDataset(Dataset):
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
         multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
+        active_cutmix = False
 
-        image_transform = self.transform(image)
-        return image_transform, multi_class_label
+        # cutmix를 수행할 대상 이미지 index
+        curmix_target = [idx for idx, age_label in enumerate(self.age_labels) if age_label in list(range(1, 18, 3))]
+        curmix_target = random.choices(curmix_target, k=int(len(curmix_target) * 0.5))
+
+        image_transform = self.transform(image) # transfrom 결과
+        if index in curmix_target:
+            active_cutmix = True
+        return image_transform, multi_class_label, active_cutmix
 
     def __len__(self):
         return len(self.image_paths)
@@ -250,27 +260,27 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
-        length = len(profiles)
-        n_val = int(length * val_ratio)
+        length = len(profiles) # 전체 길이
+        n_val = int(length * val_ratio) # validation ratio만큼의 길이
 
-        val_indices = set(random.choices(range(length), k=n_val))
-        train_indices = set(range(length)) - val_indices
+        val_indices = set(random.choices(range(length), k=n_val)) # n_val만큼 random choice
+        train_indices = set(range(length)) - val_indices # n_val만큼 choice된 것을 제외한 나머지
         return {
             "train": train_indices,
             "val": val_indices
         }
 
     def setup(self):
-        profiles = os.listdir(self.data_dir)
-        profiles = [profile for profile in profiles if not profile.startswith(".")]
-        split_profiles = self._split_profile(profiles, self.val_ratio)
+        profiles = os.listdir(self.data_dir) # iamges폴더의 하위 폴더 목록
+        profiles = [profile for profile in profiles if not profile.startswith(".")] # 숨은 폴더, 파일 제외
+        split_profiles = self._split_profile(profiles, self.val_ratio) # train, valid data split
 
         cnt = 0
-        for phase, indices in split_profiles.items():
+        for phase, indices in split_profiles.items(): # train : indice, val : indice
             for _idx in indices:
-                profile = profiles[_idx]
-                img_folder = os.path.join(self.data_dir, profile)
-                for file_name in os.listdir(img_folder):
+                profile = profiles[_idx] # current profile directory
+                img_folder = os.path.join(self.data_dir, profile) # full path directory
+                for file_name in os.listdir(img_folder): # current profile file list
                     _file_name, ext = os.path.splitext(file_name)
                     if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                         continue
@@ -278,7 +288,7 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
                     mask_label = self._file_names[_file_name]
 
-                    id, gender, race, age = profile.split("_")
+                    id, gender, race, age = profile.split("_") # directory name split
                     gender_label = GenderLabels.from_str(gender)
                     age_label = AgeLabels.from_number(age)
 
@@ -291,21 +301,17 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     cnt += 1
 
     def split_dataset(self) -> List[Subset]:
-        return [Subset(self, indices) for phase, indices in self.indices.items()]
+        return [Subset(self, indices) for phase, indices in self.indices.items()] # 지정한 index에 위치해 있는 data를 가져옴
 
 
 class TestDataset(Dataset):
-    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+    def __init__(self, img_paths, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
+        self.transform = CustomAugmentation(mean, std)
+        
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
-
         if self.transform:
             image = self.transform(image)
         return image
