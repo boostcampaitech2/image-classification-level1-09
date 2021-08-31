@@ -18,6 +18,7 @@ from loss import create_criterion
 
 from tqdm.notebook import tqdm
 from sklearn.metrics import f1_score
+from sklearn.utils import class_weight
 
 import pyramidnet as PYRM
 
@@ -136,13 +137,16 @@ def train(data_dir, model_dir, args):
     model_module = getattr(import_module("model"), args.model)  # default: BaseModel
     model = model_module(
         num_classes=num_classes,
-        freeze = True
+        freeze = False
     ).to(device)
+    
     # model = PYRM.PyramidNet('imagenet', 32, 300, 18, True).to(device)
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
-    criterion = create_criterion(args.criterion, classes=18)  # default: f1
+    # labels = np.array(dataset.all_labels)
+    # weights = class_weight.compute_class_weight('balanced', np.unique(labels), labels)
+    criterion = create_criterion(args.criterion, classes=num_classes)  # default: f1
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: AdamW
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
@@ -174,6 +178,7 @@ def train(data_dir, model_dir, args):
             inputs = inputs.to(device)
             inputs, lam, rand_indexs = CutMix_half(inputs, active_cutmixs)()
             labels = labels.to(device)
+
             # cutmix loss를 계산하기 위해 필요
             rand_target = torch.tensor([labels[idx] for idx in rand_indexs], device=device)
             
@@ -275,7 +280,7 @@ def train(data_dir, model_dir, args):
             # logger.add_scalar("Val/accuracy", val_acc, epoch)
             # logger.add_figure("results", figure, epoch)
             # print()
-    torch.save(model.module.state_dict(), os.path.join(model_dir, "last.pt")) # 마지막 모델 저장
+        torch.save(model.state_dict(), os.path.join(model_dir, f"checkpoint{epoch}.pt")) # 마지막 모델 저장
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -286,14 +291,14 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 1)')
+    parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train (default: 1)')
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='data augmentation type (default: CustomAugmentation)')
     parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=32, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=16, help='input batch size for validing (default: 16)')
     parser.add_argument('--earlystopping', type=str, default='EarlyStopping', help='EarlyStopping')
-    parser.add_argument('--model', type=str, default='resnet50', help='model type (default: resnet50)')
+    parser.add_argument('--model', type=str, default='swin_large_patch4_window7_224', help='model type (default: resnet50)')
     parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type (default: AdamW)')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning rate (default: 1e-4)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')

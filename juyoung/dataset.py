@@ -59,7 +59,7 @@ class CustomAugmentation:
         if age_labels:
             self.age_labels = age_labels
         self.curmix_target = [idx for idx, age_label in enumerate(self.age_labels) if age_label in [1, 4]]
-        self.curmix_target = random.choices(self.curmix_target, k=int(len(self.curmix_target) * 0.5))
+        self.curmix_target = random.choices(self.curmix_target, k=int(len(self.curmix_target) * 0.3))
 
         if not self.is_valid:
             # train transform
@@ -186,6 +186,7 @@ class MaskBaseDataset(Dataset):
     age_labels = []
     groups = []
     all_labels = []
+    indexs = []
 
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         self.data_dir = data_dir
@@ -361,13 +362,14 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     self.age_labels.append(age_label)
                     self.groups.append(id)
                     self.all_labels.append(self.encode_multi_class(mask_label, gender_label, age_label)) 
-                    self.indices[phase].append(cnt)
+                    self.indexs.append(cnt)
+                    # self.indices[phase].append(cnt)
                     cnt += 1
                     
         # print(len(list(filter(lambda x: x in list(range(2, 18, 3)), self.age_labels)))) # 60대 label 수 확인
         
     def split_dataset(self) -> List[Subset]:
-        df = pd.DataFrame({"indexs":self.indices, "groups":self.groups, "labels":self.all_labels})
+        df = pd.DataFrame({"indexs":self.indexs, "groups":self.groups, "labels":self.all_labels})
 
         train, valid = train_test_apart_stratify(df, group="groups", stratify="labels", test_size=self.val_ratio)
         train_index = train["indexs"].tolist()

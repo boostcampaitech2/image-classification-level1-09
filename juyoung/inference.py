@@ -22,7 +22,7 @@ def load_model(saved_model, num_classes, device):
     # tar = tarfile.open(tarpath, 'r:gz')
     # tar.extractall(path=saved_model)
 
-    model_path = os.path.join(saved_model, '0.7536.pt')
+    model_path = os.path.join(saved_model, 'exp5.pt')
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     return model

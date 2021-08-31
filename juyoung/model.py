@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torchvision
 
 import math
-import timm
+import timm #'swin_large_patch4_window7_224' - in_features = 1536
 
 
 class BaseModel(nn.Module):
@@ -116,3 +116,23 @@ class dm_nfnet_f3(nn.Module):
 
     def forward(self, x):
         return self.dm_nfnet_f3(x)
+
+# swin_large_patch4_window7_224
+class swin_large_patch4_window7_224(nn.Module):
+    def __init__(self, num_classes, freeze):
+        super().__init__()
+        self.freeze = freeze
+        self.model = timm.create_model('swin_large_patch4_window7_224', pretrained=True)
+        self.model.head = torch.nn.Linear(in_features=1536, out_features=num_classes, bias=True)
+        self.init_param()
+
+    def init_param(self):
+        torch.nn.init.kaiming_uniform_(self.model.head.weight)
+        stdv = 1./math.sqrt(self.model.head.weight.size(1))
+        self.model.head.bias.data.uniform_(-stdv, stdv)
+        if self.freeze:
+            for param in self.dm_nfnet_f3.parameters():
+                param.requies_grad = False
+
+    def forward(self, x):
+        return self.model(x)
