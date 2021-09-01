@@ -58,8 +58,14 @@ class CustomAugmentation:
         self.is_valid = is_valid
         if age_labels:
             self.age_labels = age_labels
-        self.curmix_target = [idx for idx, age_label in enumerate(self.age_labels) if age_label in [1, 4]]
-        self.curmix_target = random.choices(self.curmix_target, k=int(len(self.curmix_target) * 0.3))
+        # 중년층
+        self.cutmix_target_345 = [idx for idx, age_label in enumerate(self.age_labels) if age_label in [1, 4]]
+        self.cutmix_target_345 = random.choices(self.cutmix_target_345, k=int(len(self.cutmix_target_345) * 0.5))
+        # 젊은층
+        self.cutmix_target_20 = [idx for idx, age_label in enumerate(self.age_labels) if age_label in [0, 3]]
+        self.cutmix_target_20 = random.choices(self.cutmix_target_20, k=int(len(self.cutmix_target_20) * 0.2))
+
+        self.cutmix_tatget = self.cutmix_target_345 + self.cutmix_target_20
 
         if not self.is_valid:
             # train transform
@@ -92,7 +98,7 @@ class CustomAugmentation:
     def __call__(self, image, index=None):
         if not self.is_valid:
             # cutmix를 수행할 대상 이미지 index
-            index = [i in self.curmix_target for i in index]
+            index = [i in self.cutmix_tatget for i in index]
         else:
             index = [False] * len(index)
         
@@ -362,26 +368,32 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     self.age_labels.append(age_label)
                     self.groups.append(id)
                     self.all_labels.append(self.encode_multi_class(mask_label, gender_label, age_label)) 
-                    self.indexs.append(cnt)
-                    # self.indices[phase].append(cnt)
+                    # self.indexs.append(cnt)
+                    self.indices[phase].append(cnt)
                     cnt += 1
                     
         # print(len(list(filter(lambda x: x in list(range(2, 18, 3)), self.age_labels)))) # 60대 label 수 확인
         
-    def split_dataset(self) -> List[Subset]:
-        df = pd.DataFrame({"indexs":self.indexs, "groups":self.groups, "labels":self.all_labels})
+    def split_dataset(self, train_idx=None, valid_idx=None) -> List[Subset]:
+        # < -- train_test_apart_stratify 적용 -- >
+        # df = pd.DataFrame({"indexs":self.indexs, "groups":self.groups, "labels":self.all_labels})
+        # train, valid = train_test_apart_stratify(df, group="groups", stratify="labels", test_size=self.val_ratio)
+        # train_index = train["indexs"].tolist()
+        # valid_index = valid["indexs"].tolist()
+        # return  [Subset(self, train_index), Subset(self, valid_index)]
 
-        train, valid = train_test_apart_stratify(df, group="groups", stratify="labels", test_size=self.val_ratio)
-        train_index = train["indexs"].tolist()
-        valid_index = valid["indexs"].tolist()
-        return  [Subset(self, train_index), Subset(self, valid_index)]
-        # return [Subset(self, indices) for phase, indices in self.indices.items()] # 지정한 index에 위치해 있는 data를 가져옴
+        # < -- Out-Of-Fold Ensemble with TTA 적용 -- >
+        # return [Subset(self, train_idx), Subset(self, valid_idx)]
+
+        # < -- 기존 적용 코드 -- >
+        return [Subset(self, indices) for phase, indices in self.indices.items()] # 지정한 index에 위치해 있는 data를 가져옴
 
 
 class TestDataset(Dataset):
     def __init__(self, img_paths, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
         self.transform = Compose([
+                Resize(224, 224, Image.BILINEAR),
                 Normalize(mean=mean, std=std),
                 ToTensorV2(),
             ])

@@ -6,9 +6,11 @@ import re
 from importlib import import_module
 from pathlib import Path
 from GPUtil import showUtilization as gpu_usage
+from ipywidgets.widgets import widget
 from utils import CutMix, CutMix_half
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
@@ -19,6 +21,7 @@ from loss import create_criterion
 from tqdm.notebook import tqdm
 from sklearn.metrics import f1_score
 from sklearn.utils import class_weight
+from sklearn.model_selection import StratifiedKFold
 
 import pyramidnet as PYRM
 
@@ -107,8 +110,24 @@ def train(data_dir, model_dir, args):
         age_labels=dataset.age_labels
     )
 
+    # -- Out-Of-Fold Ensemble with TTA
+    n_splits = 5
+    skf = StratifiedKFold(n_splits=n_splits)
+
+    counter = 0
+    accumulation_steps = 2
+    best_val_acc = 0
+    best_val_loss = np.inf
+    oof_pred = None
+
+    labels = dataset.all_labels
+
+    # for i, (train_idx, valid_idx) in enumerate(skf.split(dataset.image_paths, labels)):
+    
+    # < -- k-fold 시작 -- >
+
     # -- data_loader
-    train_set, val_set = dataset.split_dataset()
+    train_set, val_set = dataset.split_dataset() # OOF 적용시 train_index, valid_index 지정
 
     train_loader = DataLoader(
         train_set,
@@ -130,8 +149,8 @@ def train(data_dir, model_dir, args):
 
 
     # --earlystopping
-    earlystop_module = getattr(import_module("utils"), args.earlystopping)
-    earlystopping = earlystop_module(patience=10, verbose=True, path=save_dir)
+    # earlystop_module = getattr(import_module("utils"), args.earlystopping)
+    # earlystopping = earlystop_module(patience=10, verbose=True, path=save_dir)
 
     # -- model
     model_module = getattr(import_module("model"), args.model)  # default: BaseModel
@@ -144,8 +163,8 @@ def train(data_dir, model_dir, args):
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
-    # labels = np.array(dataset.all_labels)
     # weights = class_weight.compute_class_weight('balanced', np.unique(labels), labels)
+    # weights = torch.FloatTensor(weights).to(device)
     criterion = create_criterion(args.criterion, classes=num_classes)  # default: f1
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: AdamW
     optimizer = opt_module(
@@ -271,16 +290,17 @@ def train(data_dir, model_dir, args):
             wandb.log({'train/accuracy': train_acc, 'train/loss': train_loss, 'train/f1_score' : train_f1,
                         'vaild/accuracy': val_acc, 'vaild/loss': val_loss, 'vaild/f1_score' : valid_f1})
 
-            earlystopping(valid_f1, model)
-            if earlystopping.early_stop:
-                print("Early stopping")
-                break
+            # earlystopping(valid_f1, model)
+            # if earlystopping.early_stop:
+            #     print("Early stopping")
+            #     break
 
             # logger.add_scalar("Val/loss", val_loss, epoch)
             # logger.add_scalar("Val/accuracy", val_acc, epoch)
             # logger.add_figure("results", figure, epoch)
             # print()
-        torch.save(model.state_dict(), os.path.join(model_dir, f"checkpoint{epoch}.pt")) # 마지막 모델 저장
+        if epoch > 3:
+            torch.save(model.state_dict(), os.path.join(model_dir, f"checkpoint{epoch}.pt")) # epoch 4이상부터 저장
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -295,12 +315,12 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='data augmentation type (default: CustomAugmentation)')
     parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help='resize size for image when training')
-    parser.add_argument('--batch_size', type=int, default=32, help='input batch size for training (default: 64)')
+    parser.add_argument('--batch_size', type=int, default=32, help='inputcd .. batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=16, help='input batch size for validing (default: 16)')
     parser.add_argument('--earlystopping', type=str, default='EarlyStopping', help='EarlyStopping')
-    parser.add_argument('--model', type=str, default='swin_large_patch4_window7_224', help='model type (default: resnet50)')
+    parser.add_argument('--model', type=str, default='resnet152', help='model type (default: resnet50)')
     parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type (default: AdamW)')
-    parser.add_argument('--lr', type=float, default=1e-5, help='learning rate (default: 1e-4)')
+    parser.add_argument('--lr', type=float, default=1e-6, help='learning rate (default: 1e-4)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='f1', help='criterion type (default: f1)')
     parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')

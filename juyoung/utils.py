@@ -109,7 +109,7 @@ class CutMix_half:
     def cutmix(self, idx):
         rand_index = random.choice(range(self.images.size()[0])) # 추출할 대상 index 한 개를 random 선택
         half = self._rand_bbox(self.images.size()) #random한 bbox 좌표 추출
-        self.images[idx, :, half // 2:, :] = self.images[rand_index, :, half // 2:, :]
+        self.images[idx, :, :, half // 2:] = self.images[rand_index, :, :, half // 2:]
         self.rand_indexs.append(rand_index) # bbox에 해당하는 이미지의 index 기록
 
     def __call__(self):

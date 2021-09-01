@@ -22,7 +22,7 @@ def load_model(saved_model, num_classes, device):
     # tar = tarfile.open(tarpath, 'r:gz')
     # tar.extractall(path=saved_model)
 
-    model_path = os.path.join(saved_model, 'exp5.pt')
+    model_path = os.path.join(saved_model, 'swin_checkpoint11.pt')
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     return model
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=16, help='input batch size for validing (default: 16)')
     parser.add_argument('--resize', type=tuple, default=(96, 128), help='resize size for image when you trained (default: (96, 128))')
-    parser.add_argument('--model', type=str, default='resnet50', help='model type (default: resnet50)')
+    parser.add_argument('--model', type=str, default='swin_large_patch4_window7_224', help='model type (default: resnet50)')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))

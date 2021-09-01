@@ -131,7 +131,7 @@ class swin_large_patch4_window7_224(nn.Module):
         stdv = 1./math.sqrt(self.model.head.weight.size(1))
         self.model.head.bias.data.uniform_(-stdv, stdv)
         if self.freeze:
-            for param in self.dm_nfnet_f3.parameters():
+            for param in self.model.parameters():
                 param.requies_grad = False
 
     def forward(self, x):
