@@ -5,6 +5,7 @@ import torchvision
 
 import math
 import timm #'swin_large_patch4_window7_224' - in_features = 1536
+from efficientnet_pytorch import EfficientNet
 
 
 class BaseModel(nn.Module):
@@ -130,6 +131,26 @@ class swin_large_patch4_window7_224(nn.Module):
         torch.nn.init.kaiming_uniform_(self.model.head.weight)
         stdv = 1./math.sqrt(self.model.head.weight.size(1))
         self.model.head.bias.data.uniform_(-stdv, stdv)
+        if self.freeze:
+            for param in self.model.parameters():
+                param.requies_grad = False
+
+    def forward(self, x):
+        return self.model(x)
+
+# efficientnet_b7
+class efficientnet_b7(nn.Module):
+    def __init__(self, num_classes, freeze):
+        super().__init__()
+        self.freeze = freeze
+        self.model = EfficientNet.from_pretrained('efficientnet-b7')
+        self.model._fc = torch.nn.Linear(in_features=2560, out_features=num_classes, bias=True)
+        self.init_param()
+
+    def init_param(self):
+        torch.nn.init.kaiming_uniform_(self.model._fc.weight)
+        stdv = 1./math.sqrt(self.model._fc.weight.size(1))
+        self.model._fc.bias.data.uniform_(-stdv, stdv)
         if self.freeze:
             for param in self.model.parameters():
                 param.requies_grad = False

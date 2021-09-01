@@ -3,6 +3,7 @@ import os
 from importlib import import_module
 
 import pandas as pd
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -22,7 +23,7 @@ def load_model(saved_model, num_classes, device):
     # tar = tarfile.open(tarpath, 'r:gz')
     # tar.extractall(path=saved_model)
 
-    model_path = os.path.join(saved_model, 'swin_checkpoint11.pt')
+    model_path = os.path.join(saved_model, 'checkpoint13.pt')
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     return model
@@ -43,9 +44,31 @@ def inference(data_dir, model_dir, output_dir, args):
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths)
-    loader = torch.utils.data.DataLoader(
-        dataset,
+
+    # -- define dataset
+    dataset1 = TestDataset(img_paths, trans_n=1)
+    dataset2 = TestDataset(img_paths, trans_n=2)
+    dataset3 = TestDataset(img_paths, trans_n=3)
+
+    # -- define dataloader
+    loader1 = torch.utils.data.DataLoader(
+        dataset1,
+        # batch_size=args.batch_size,
+        num_workers=4,
+        shuffle=False,
+        pin_memory=use_cuda,
+        drop_last=False,
+    )
+    loader2 = torch.utils.data.DataLoader(
+        dataset2,
+        # batch_size=args.batch_size,
+        num_workers=4,
+        shuffle=False,
+        pin_memory=use_cuda,
+        drop_last=False,
+    )
+    loader3 = torch.utils.data.DataLoader(
+        dataset3,
         # batch_size=args.batch_size,
         num_workers=4,
         shuffle=False,
@@ -54,16 +77,49 @@ def inference(data_dir, model_dir, output_dir, args):
     )
 
     print("Calculating inference results..")
-    preds = []
+
+    # -- save prediction
+    all_preds = []
+    all_logits = np.zeros((1, 18))
+    pred_1 = []
+    pred_2 = []
+    pred_3 = []
+
+    # -- inference(TTA)
     with torch.no_grad():
-        for idx, images in enumerate(loader):
+        for idx, images in enumerate(loader1):
             images = images.to(device)
             pred = model(images)
-            pred = pred.argmax(dim=-1)
-            preds.extend(pred.cpu().numpy())
+            all_logits = np.vstack([all_logits, pred.cpu()])
+            # pred = pred.argmax(dim=-1)
+            pred_1.extend((2*pred).cpu())
+    with torch.no_grad():
+        for idx, images in enumerate(loader2):
+            images = images.to(device)
+            pred = model(images)
+            all_logits = np.vstack([all_logits, pred.cpu()])
+            # pred = pred.argmax(dim=-1)
+            pred_2.extend(pred.cpu())
+    with torch.no_grad():
+        for idx, images in enumerate(loader3):
+            images = images.to(device)
+            pred = model(images)
+            all_logits = np.vstack([all_logits, pred.cpu()])
+            # pred = pred.argmax(dim=-1)
+            pred_3.extend((2*pred).cpu())
 
-    info['ans'] = preds
+    for k in range(len(pred_1)):
+        npred = torch.zeros(images.size(0), 18)
+        npred = torch.add(npred, pred_1[k])
+        npred = torch.add(npred, pred_2[k])
+        npred = torch.add(npred, pred_3[k])
+        npred = npred.argmax(dim=-1) 
+
+        all_preds.extend(npred.cpu().numpy())
+
+    info['ans'] = all_preds
     info.to_csv(os.path.join(output_dir, f'output.csv'), index=False)
+    np.save(os.path.join(output_dir, 'logit.npy'), all_logits)
     print(f'Inference Done!')
 
 
@@ -73,7 +129,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=16, help='input batch size for validing (default: 16)')
     parser.add_argument('--resize', type=tuple, default=(96, 128), help='resize size for image when you trained (default: (96, 128))')
-    parser.add_argument('--model', type=str, default='swin_large_patch4_window7_224', help='model type (default: resnet50)')
+    parser.add_argument('--model', type=str, default='resnet152', help='model type (default: resnet50)')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))

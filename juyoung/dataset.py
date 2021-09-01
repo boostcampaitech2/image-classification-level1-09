@@ -60,10 +60,10 @@ class CustomAugmentation:
             self.age_labels = age_labels
         # 중년층
         self.cutmix_target_345 = [idx for idx, age_label in enumerate(self.age_labels) if age_label in [1, 4]]
-        self.cutmix_target_345 = random.choices(self.cutmix_target_345, k=int(len(self.cutmix_target_345) * 0.5))
+        self.cutmix_target_345 = random.choices(self.cutmix_target_345, k=int(len(self.cutmix_target_345) * 0.3))
         # 젊은층
         self.cutmix_target_20 = [idx for idx, age_label in enumerate(self.age_labels) if age_label in [0, 3]]
-        self.cutmix_target_20 = random.choices(self.cutmix_target_20, k=int(len(self.cutmix_target_20) * 0.2))
+        self.cutmix_target_20 = random.choices(self.cutmix_target_20, k=int(len(self.cutmix_target_20) * 0.1))
 
         self.cutmix_tatget = self.cutmix_target_345 + self.cutmix_target_20
 
@@ -390,13 +390,29 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
 
 class TestDataset(Dataset):
-    def __init__(self, img_paths, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+    def __init__(self, img_paths, trans_n=1, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.transform = Compose([
-                Resize(224, 224, Image.BILINEAR),
-                Normalize(mean=mean, std=std),
-                ToTensorV2(),
-            ])
+        # TTA를 위해 transform을 3개로 나누어 줌
+        if trans_n == 1:
+            self.transform = Compose([
+                    Resize(224, 224, Image.BILINEAR),
+                    Normalize(mean=mean, std=std),
+                    ToTensorV2(),
+                ])
+        if trans_n == 2:
+            self.transform = Compose([
+                    HorizontalFlip(),
+                    Resize(224, 224, Image.BILINEAR),
+                    Normalize(mean=mean, std=std),
+                    ToTensorV2(),
+                ])
+        if trans_n == 3:
+            self.transform = Compose([
+                    Rotate(limit=5),
+                    Resize(224, 224, Image.BILINEAR),
+                    Normalize(mean=mean, std=std),
+                    ToTensorV2(),
+                ])
         
     def __getitem__(self, index):
         image = np.array(Image.open(self.img_paths[index]))

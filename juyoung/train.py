@@ -222,13 +222,16 @@ def train(data_dir, model_dir, args):
             if (idx + 1) % args.log_interval == 0:
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
-                train_f1 = train_f1 / args.log_interval
+                train_f1 = train_f1 / args.log_interval # 현재 interval 동안의 train_f1 계산
                 current_lr = get_lr(optimizer)
                 print(
                     f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
                     f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr} || "
                     f"training F1 Score {train_f1:4.4}"
                 )
+
+                wandb.log({'train/accuracy': train_acc, 'train/loss': train_loss, 'train/f1_score' : train_f1})
+
                 # logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
                 # logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
@@ -318,12 +321,12 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=32, help='inputcd .. batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=16, help='input batch size for validing (default: 16)')
     parser.add_argument('--earlystopping', type=str, default='EarlyStopping', help='EarlyStopping')
-    parser.add_argument('--model', type=str, default='resnet152', help='model type (default: resnet50)')
+    parser.add_argument('--model', type=str, default='efficientnet_b7', help='model type (default: resnet50)')
     parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type (default: AdamW)')
-    parser.add_argument('--lr', type=float, default=1e-6, help='learning rate (default: 1e-4)')
+    parser.add_argument('--lr', type=float, default=5e-5, help='learning rate (default: 1e-4)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='f1', help='criterion type (default: f1)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
+    parser.add_argument('--lr_decay_step', type=int, default=1e-3, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--num_worker', type=int, default=4, help='num_worker')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
