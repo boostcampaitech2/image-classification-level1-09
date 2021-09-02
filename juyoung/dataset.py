@@ -60,10 +60,10 @@ class CustomAugmentation:
             self.age_labels = age_labels
         # 중년층
         self.cutmix_target_345 = [idx for idx, age_label in enumerate(self.age_labels) if age_label in [1, 4]]
-        self.cutmix_target_345 = random.choices(self.cutmix_target_345, k=int(len(self.cutmix_target_345) * 0.3))
+        self.cutmix_target_345 = random.choices(self.cutmix_target_345, k=int(len(self.cutmix_target_345) * 0.4))
         # 젊은층
         self.cutmix_target_20 = [idx for idx, age_label in enumerate(self.age_labels) if age_label in [0, 3]]
-        self.cutmix_target_20 = random.choices(self.cutmix_target_20, k=int(len(self.cutmix_target_20) * 0.1))
+        self.cutmix_target_20 = random.choices(self.cutmix_target_20, k=int(len(self.cutmix_target_20) * 0.2))
 
         self.cutmix_tatget = self.cutmix_target_345 + self.cutmix_target_20
 
