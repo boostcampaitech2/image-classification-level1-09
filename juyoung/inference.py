@@ -8,8 +8,6 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import TestDataset, MaskBaseDataset
-import pyramidnet as PYRM
-
 
 def load_model(saved_model, num_classes, device):
     model_cls = getattr(import_module("model"), args.model)
@@ -17,13 +15,10 @@ def load_model(saved_model, num_classes, device):
         num_classes=num_classes,
         freeze = True
     )
-    # model = PYRM.PyramidNet('imagenet', 32, 300, 18, True)
-    model = torch.nn.DataParallel(model)
-    # tarpath = os.path.join(saved_model, 'best.tar.gz')
-    # tar = tarfile.open(tarpath, 'r:gz')
-    # tar.extractall(path=saved_model)
 
-    model_path = os.path.join(saved_model, 'checkpoint13.pt')
+    model = torch.nn.DataParallel(model)
+
+    model_path = os.path.join(saved_model, 'resnet50-cutmix30%.pt')
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     return model
@@ -51,25 +46,22 @@ def inference(data_dir, model_dir, output_dir, args):
     dataset3 = TestDataset(img_paths, trans_n=3)
 
     # -- define dataloader
-    loader1 = torch.utils.data.DataLoader(
+    loader1 = DataLoader(
         dataset1,
-        # batch_size=args.batch_size,
         num_workers=4,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=False,
     )
-    loader2 = torch.utils.data.DataLoader(
+    loader2 = DataLoader(
         dataset2,
-        # batch_size=args.batch_size,
         num_workers=4,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=False,
     )
-    loader3 = torch.utils.data.DataLoader(
+    loader3 = DataLoader(
         dataset3,
-        # batch_size=args.batch_size,
         num_workers=4,
         shuffle=False,
         pin_memory=use_cuda,
@@ -91,21 +83,18 @@ def inference(data_dir, model_dir, output_dir, args):
             images = images.to(device)
             pred = model(images)
             all_logits = np.vstack([all_logits, pred.cpu()])
-            # pred = pred.argmax(dim=-1)
             pred_1.extend((2*pred).cpu())
     with torch.no_grad():
         for idx, images in enumerate(loader2):
             images = images.to(device)
             pred = model(images)
             all_logits = np.vstack([all_logits, pred.cpu()])
-            # pred = pred.argmax(dim=-1)
             pred_2.extend(pred.cpu())
     with torch.no_grad():
         for idx, images in enumerate(loader3):
             images = images.to(device)
             pred = model(images)
             all_logits = np.vstack([all_logits, pred.cpu()])
-            # pred = pred.argmax(dim=-1)
             pred_3.extend((2*pred).cpu())
 
     for k in range(len(pred_1)):
@@ -129,7 +118,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=16, help='input batch size for validing (default: 16)')
     parser.add_argument('--resize', type=tuple, default=(96, 128), help='resize size for image when you trained (default: (96, 128))')
-    parser.add_argument('--model', type=str, default='efficientnet_b7', help='model type (default: resnet50)')
+    parser.add_argument('--model', type=str, default='resnet50', help='model type (default: resnet50)')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))

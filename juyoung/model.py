@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torchvision
 
 import math
-import timm #'swin_large_patch4_window7_224' - in_features = 1536
+import timm
 from efficientnet_pytorch import EfficientNet
 
 
@@ -70,9 +70,9 @@ class resnet50(nn.Module):
         torch.nn.init.kaiming_uniform_(self.resnet50.fc.weight)
         stdv = 1./math.sqrt(self.resnet50.fc.weight.size(1))
         self.resnet50.fc.bias.data.uniform_(-stdv, stdv)
-        # if self.freeze:
-        #     for param in self.resnet50.parameters():
-        #         param.requies_grad = False
+        if self.freeze:
+            for param in self.resnet50.parameters():
+                param.requies_grad = False
 
     def forward(self, x):
         return self.resnet50(x)
@@ -90,9 +90,9 @@ class resnet152(nn.Module):
         torch.nn.init.kaiming_uniform_(self.resnet152.fc.weight)
         stdv = 1./math.sqrt(self.resnet152.fc.weight.size(1))
         self.resnet152.fc.bias.data.uniform_(-stdv, stdv)
-        # if self.freeze:
-        #     for param in self.resnet152.parameters():
-        #         param.requies_grad = False
+        if self.freeze:
+            for param in self.resnet152.parameters():
+                param.requies_grad = False
 
     def forward(self, x):
         return self.resnet152(x)
@@ -111,9 +111,9 @@ class dm_nfnet_f3(nn.Module):
         torch.nn.init.kaiming_uniform_(self.dm_nfnet_f3.head.fc.weight)
         stdv = 1./math.sqrt(self.dm_nfnet_f3.head.fc.weight.size(1))
         self.dm_nfnet_f3.head.fc.bias.data.uniform_(-stdv, stdv)
-        # if self.freeze:
-        #     for param in self.dm_nfnet_f3.parameters():
-        #         param.requies_grad = False
+        if self.freeze:
+            for param in self.dm_nfnet_f3.parameters():
+                param.requies_grad = False
 
     def forward(self, x):
         return self.dm_nfnet_f3(x)

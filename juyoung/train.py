@@ -6,11 +6,9 @@ import re
 from importlib import import_module
 from pathlib import Path
 from GPUtil import showUtilization as gpu_usage
-from ipywidgets.widgets import widget
-from utils import CutMix, CutMix_half
+from utils import CutMix_half
 
 import numpy as np
-import pandas as pd
 import torch
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
@@ -20,7 +18,6 @@ from loss import create_criterion
 
 from tqdm.notebook import tqdm
 from sklearn.metrics import f1_score
-from sklearn.utils import class_weight
 from sklearn.model_selection import StratifiedKFold
 
 import pyramidnet as PYRM
@@ -159,12 +156,9 @@ def train(data_dir, model_dir, args):
         freeze = False
     ).to(device)
     
-    # model = PYRM.PyramidNet('imagenet', 32, 300, 18, True).to(device)
     model = torch.nn.DataParallel(model)
 
     # -- loss & metric
-    # weights = class_weight.compute_class_weight('balanced', np.unique(labels), labels)
-    # weights = torch.FloatTensor(weights).to(device)
     criterion = create_criterion(args.criterion, classes=num_classes)  # default: f1
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: AdamW
     optimizer = opt_module(
@@ -172,13 +166,7 @@ def train(data_dir, model_dir, args):
         lr=args.lr,
         weight_decay=args.lr_decay_step
     )
-    # scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
     scheduler = CosineAnnealingLR(optimizer, T_max=10, eta_min=0)
-
-    # -- logging
-    # logger = SummaryWriter(log_dir=save_dir)
-    # with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:
-    #     json.dump(vars(args), f, ensure_ascii=False, indent=4)
 
     best_val_acc = 0
     best_val_loss = np.inf
@@ -205,11 +193,11 @@ def train(data_dir, model_dir, args):
 
             outs = model(inputs)
             preds = torch.argmax(outs, dim=-1)
+
+            # -- common loss
             # loss = criterion(outs, labels)
 
             # --cutmix loss
-            # print("len labels", len(labels),labels)
-            # print("len rand target", len(rand_target), rand_target)
             loss = criterion(outs, labels) * lam + criterion(outs, rand_target) * (1 - lam)
 
             loss.backward()
@@ -231,9 +219,6 @@ def train(data_dir, model_dir, args):
                 )
 
                 wandb.log({'train/accuracy': train_acc, 'train/loss': train_loss, 'train/f1_score' : train_f1})
-
-                # logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
-                # logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
                 loss_value = 0
                 matches = 0
@@ -264,13 +249,6 @@ def train(data_dir, model_dir, args):
                 val_acc_items.append(acc_item)
                 valid_f1 += f1_score(preds.cpu().numpy(), labels.cpu().numpy(), average='macro')
                 n_iter += 1
-
-                # if figure is None:
-                #     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
-                #     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
-                #     figure = grid_image(
-                #         inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
-                #     )
                 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
@@ -278,11 +256,7 @@ def train(data_dir, model_dir, args):
             valid_f1 = valid_f1 / n_iter
             
             if val_acc > best_val_acc:
-            #     print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
-            #     torch.save(model.module.state_dict(), f"{save_dir}/best.pth") # best model 저장
                 best_val_acc = val_acc
-                
-            # torch.save(model.module.state_dict(), f"{save_dir}/last.pth") # 마지막 모델 저장
             
             print(
                 f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || "
@@ -298,11 +272,7 @@ def train(data_dir, model_dir, args):
             #     print("Early stopping")
             #     break
 
-            # logger.add_scalar("Val/loss", val_loss, epoch)
-            # logger.add_scalar("Val/accuracy", val_acc, epoch)
-            # logger.add_figure("results", figure, epoch)
-            # print()
-        if epoch > 3:
+        if epoch > 3: # 3epoch 이후부터 checkpoint 저장
             torch.save(model.state_dict(), os.path.join(model_dir, f"checkpoint{epoch}.pt")) # epoch 4이상부터 저장
 
 if __name__ == '__main__':
@@ -323,7 +293,7 @@ if __name__ == '__main__':
     parser.add_argument('--earlystopping', type=str, default='EarlyStopping', help='EarlyStopping')
     parser.add_argument('--model', type=str, default='efficientnet_b7', help='model type (default: resnet50)')
     parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type (default: AdamW)')
-    parser.add_argument('--lr', type=float, default=5e-6, help='learning rate (default: 1e-4)')
+    parser.add_argument('--lr', type=float, default=1e-5, help='learning rate (default: 1e-4)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='f1', help='criterion type (default: f1)')
     parser.add_argument('--lr_decay_step', type=int, default=1e-5, help='learning rate scheduler deacy step (default: 20)')
