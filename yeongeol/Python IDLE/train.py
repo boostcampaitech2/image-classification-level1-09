@@ -21,7 +21,7 @@ from dataset import MaskBaseDataset
 from loss import create_criterion
 
 
-def seed_everything(seed):
+def seed_everything(seed:int) -> None:
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  # if use multi-GPU
@@ -37,6 +37,15 @@ def get_lr(optimizer):
 
 
 def grid_image(np_images, gts, preds, n=16, shuffle=False):
+    """ Return plt.figures of input batch images
+
+    Args:
+        np_images (numpy.ndarray): batch_size * images
+        gts (numpy.ndarray): batch_size * ground truth labels
+        preds (numpy.ndarray) : batch_size * predicted values
+        n (int) : number of figures
+        shuffle (bool) : whether to shuffle or not
+    """
     batch_size = np_images.shape[0]
     assert n <= batch_size
 
@@ -136,7 +145,7 @@ def train(data_dir, model_dir, args):
     model = model_module(
         num_classes=num_classes
     ).to(device)
-    model = torch.nn.DataParallel(model)
+    model = torch.nn.DataParallel(model) # multi GPU
 
     # -- loss & metric
     criterion = create_criterion(args.criterion)  # default: cross_entropy
@@ -160,6 +169,8 @@ def train(data_dir, model_dir, args):
         model.train()
         loss_value = 0
         matches = 0
+
+        # iterate mini_batch
         for idx, train_batch in enumerate(train_loader):
             inputs, labels = train_batch
             inputs = inputs.to(device)
@@ -176,6 +187,8 @@ def train(data_dir, model_dir, args):
 
             loss_value += loss.item()
             matches += (preds == labels).sum().item()
+
+            # print log
             if (idx + 1) % args.log_interval == 0:
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
@@ -199,6 +212,8 @@ def train(data_dir, model_dir, args):
             val_loss_items = []
             val_acc_items = []
             figure = None
+
+            # iterate mini_batch
             for val_batch in val_loader:
                 inputs, labels = val_batch
                 inputs = inputs.to(device)
@@ -212,6 +227,7 @@ def train(data_dir, model_dir, args):
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
 
+                # make figures
                 if figure is None:
                     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
                     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
@@ -219,6 +235,7 @@ def train(data_dir, model_dir, args):
                         inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
                     )
 
+            # print log
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_loss = min(best_val_loss, val_loss)
