@@ -103,8 +103,7 @@ class dm_nfnet_f3(nn.Module):
     def __init__(self, num_classes, freeze):
         super().__init__()
         self.freeze = freeze
-        self.dm_nfnet_f3 = timm.create_model('dm_nfnet_f3', pretrained=True)
-        self.dm_nfnet_f3.head.fc = torch.nn.Linear(in_features=3072, out_features=num_classes, bias=True)
+        self.dm_nfnet_f3 = timm.create_model('dm_nfnet_f3', pretrained=True, num_classes=18)
         self.init_param()
 
     def init_param(self):
@@ -123,8 +122,7 @@ class swin_large_patch4_window7_224(nn.Module):
     def __init__(self, num_classes, freeze):
         super().__init__()
         self.freeze = freeze
-        self.model = timm.create_model('swin_large_patch4_window7_224', pretrained=True)
-        self.model.head = torch.nn.Linear(in_features=1536, out_features=num_classes, bias=True)
+        self.model = timm.create_model('swin_large_patch4_window7_224', pretrained=True, num_classes=18)
         self.init_param()
 
     def init_param(self):
