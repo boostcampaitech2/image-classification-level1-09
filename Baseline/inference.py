@@ -10,15 +10,15 @@ from dataset import TestDataset, MaskBaseDataset
 
 
 def load_model(saved_model, num_classes, device):
+    '''
+        저장했던 모델을 로드하는 함수
+    '''
     model_cls = getattr(import_module("model"), args.model)
     model = model_cls(
         num_classes=num_classes,
         freeze = True
     )
     model = torch.nn.DataParallel(model)
-    # tarpath = os.path.join(saved_model, 'best.tar.gz')
-    # tar = tarfile.open(tarpath, 'r:gz')
-    # tar.extractall(path=saved_model)
 
     model_path = os.path.join(saved_model, 'cutmix-age345-50-f1-0.8128.pt')
     model.load_state_dict(torch.load(model_path, map_location=device))
@@ -28,6 +28,9 @@ def load_model(saved_model, num_classes, device):
 
 @torch.no_grad()
 def inference(data_dir, model_dir, output_dir, args):
+    '''
+        model을 이용해 test 데이터의 결과 추론하는 함수
+    '''
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
