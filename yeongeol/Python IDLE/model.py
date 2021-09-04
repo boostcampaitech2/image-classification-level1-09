@@ -64,7 +64,7 @@ class EFF07(nn.Module):
         x = self.model(x)
         return x
 
-# Transformer (EfficientNet)
+# Transformer
 class SWIN_LARGE(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
