@@ -219,12 +219,6 @@ def train(data_dir, model_dir, args, target_class, num_classes):
     
     del model, optimizer, criterion, early_stopping, train_loader, val_loader, dataset_module,dataset,\
         transform, transform_module, train_set, val_set, state
-    try:
-        print(model)
-        print(optimizer)
-        print(criterion)
-    except Exception as e:
-        print(f'예외 발생 : {e}')
         
     torch.cuda.empty_cache()
 
