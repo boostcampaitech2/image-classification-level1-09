@@ -1,8 +1,10 @@
 import argparse
 import os
 from importlib import import_module
+from tqdm import tqdm, tqdm_notebook
 
 import pandas as pd
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -13,12 +15,13 @@ def load_model(saved_model, target_class, num_classes, device):
     model_cls = getattr(import_module("model"), args.model)
     model = model_cls(
         num_classes=num_classes
-    )
-
+    ).to(device)
+    model = torch.nn.DataParallel(model)
+    
     # tarpath = os.path.join(saved_model, 'best.tar.gz')
     # tar = tarfile.open(tarpath, 'r:gz')
     # tar.extractall(path=saved_model)
-
+    
     model_path = os.path.join(saved_model, f'{target_class}_best.pt')
     load_state = torch.load(model_path, map_location=device)
     model.load_state_dict(load_state['model_state_dict'])
@@ -56,7 +59,7 @@ def inference(data_dir, model_dir, output_dir, args):
     print("Calculating inference results..")
     final_preds = []
     with torch.no_grad():
-        for idx, images in enumerate(loader):
+        for idx, images in enumerate(tqdm(loader)):
             images = images.to(device)
             
             m_logits = model['mask'](images)
@@ -77,8 +80,8 @@ def inference(data_dir, model_dir, output_dir, args):
                             _temp.append(m+g+a)
                 add_preds.append(_temp)
 
-            final_preds.append(add_preds)
-    
+            final_preds.extend(add_preds)
+
     final_preds = np.argmax(final_preds, 1)
                                  
     info['ans'] = final_preds

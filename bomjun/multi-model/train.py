@@ -80,15 +80,9 @@ def train(data_dir, model_dir, args, target_class, num_classes):
         std=dataset.std,
     )
     dataset.set_transform(transform)
-    
-    print(len(dataset.get_labels('multi')))
-    print(len(dataset.get_labels('gender')))
-    print(len(dataset.get_labels('mask')))
-    print(len(dataset.get_labels('age')))
 
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
-    print(len(train_set))
 
     train_loader = DataLoader(
         train_set,
@@ -118,6 +112,7 @@ def train(data_dir, model_dir, args, target_class, num_classes):
     # -- loss & metric      
     #criterion = create_criterion(args.criterion)  # default: weighted_cross_entropy
     target_label = dataset.get_labels(target_class)
+
     # a manual rescaling weight given to each class.
     weights = class_weight.compute_class_weight('balanced', np.unique(target_label), target_label)
     criterion= create_criterion(args.criterion)(weight=torch.tensor(weights).float().to(device))
@@ -222,7 +217,15 @@ def train(data_dir, model_dir, args, target_class, num_classes):
             #logger.add_scalar("Val/accuracy", val_acc, epoch)
             print()
     
-    del model, optimizer, criterion, early_stopping, train_loader, val_loader, dataset_module, transform_module, train_set, val_set, state
+    del model, optimizer, criterion, early_stopping, train_loader, val_loader, dataset_module,dataset,\
+        transform, transform_module, train_set, val_set, state
+    try:
+        print(model)
+        print(optimizer)
+        print(criterion)
+    except Exception as e:
+        print(f'예외 발생 : {e}')
+        
     torch.cuda.empty_cache()
 
 

@@ -6,6 +6,7 @@ from typing import Tuple, List
 
 import numpy as np
 import pandas as pd
+import cv2
 import torch
 from PIL import Image
 from pandas_streaming.df import train_test_apart_stratify
@@ -128,14 +129,6 @@ class MultiModelDataset(Dataset):
         "incorrect_mask": MaskLabels.INCORRECT,
         "normal": MaskLabels.NORMAL
     }
-
-    image_paths = []
-    mask_labels = []
-    gender_labels = []
-    age_labels = []
-    multi_labels = []
-    idxs = []
-    groups = []
     
     def __init__(self, data_dir, target_label='multi', mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), val_ratio=0.2):
         self.data_dir = data_dir
@@ -143,6 +136,14 @@ class MultiModelDataset(Dataset):
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
+        
+        self.image_paths = []
+        self.mask_labels = []
+        self.gender_labels = []
+        self.age_labels = []
+        self.multi_labels = []
+        self.idxs = []
+        self.groups = []
 
         self.transform = None
         self.setup()
