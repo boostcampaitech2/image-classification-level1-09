@@ -1,10 +1,10 @@
-# pstage_01_image_classification
+# pstage_01_image_classification - Multi Model
+
+## Architecture
+<img src='../images/multi_model.png' width='100%' height='50%' title="multi-model"></img>
 
 ## Getting Started    
-### Dependencies
-- torch==1.6.0
-- torchvision==0.7.0                                                              
-
+                                                             
 ### Install Requirements
 - `pip install -r requirements.txt`
 
